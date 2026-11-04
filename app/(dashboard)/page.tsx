@@ -21,11 +21,31 @@ export default function DashboardHome() {
   useEffect(() => {
     const checkAccess = async () => {
       const user = await getCurrentUser()
+      const role = user?.role as string | undefined
+
       // This dashboard is scoped to one hospital — a Super Admin has
       // no hospitalId at all, so send them to their own platform-wide
       // dashboard instead of showing a meaningless empty view here.
-      if (user?.role === 'SUPER_ADMIN') {
+      if (role === 'SUPER_ADMIN') {
         router.replace('/super-admin')
+        return
+      }
+      // Hospital stats are an admin view. Other staff roles land on the
+      // screen they actually work in.
+      if (role === 'RECEPTIONIST') {
+        router.replace('/reception')
+        return
+      }
+      if (role === 'ACCOUNTANT') {
+        router.replace('/billing')
+        return
+      }
+      if (role === 'DOCTOR') {
+        router.replace('/doctor')
+        return
+      }
+      if (role === 'NURSE') {
+        router.replace('/nurse')
         return
       }
       setCheckingAccess(false)

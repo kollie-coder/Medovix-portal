@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import api from '@/lib/api'
 
 type HospitalProfile = {
@@ -13,6 +13,7 @@ type HospitalProfile = {
   phone: string
   email: string
   website: string | null
+  logo: string | null
   verified: boolean
   plan: string
   planStatus: string
@@ -30,6 +31,9 @@ export default function SettingsPage() {
     name: '', address: '', city: '', state: '', phone: '', website: '',
   })
   const [emailInvitesEnabled, setEmailInvitesEnabled] = useState(true)
+  const [logoUploading, setLogoUploading] = useState(false)
+  const [logoError, setLogoError] = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const load = async () => {
@@ -56,6 +60,27 @@ export default function SettingsPage() {
 
   const update = (field: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(prev => ({ ...prev, [field]: e.target.value }))
+
+  const handleLogoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = '' // allow re-selecting the same file later
+    if (!file) return
+
+    setLogoError('')
+    setLogoUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const { data } = await api.post('/hospital-admin/hospital/logo', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      setProfile(prev => (prev ? { ...prev, logo: data.logo } : prev))
+    } catch (err: any) {
+      setLogoError(err?.response?.data?.message ?? 'Could not upload logo')
+    } finally {
+      setLogoUploading(false)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -111,6 +136,38 @@ export default function SettingsPage() {
       <p className="text-xs text-gray-400 -mt-2 mb-6">
         Plan and verification status are managed by Medovite — contact support to make changes.
       </p>
+
+      {/* Logo upload */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-5 mb-5 flex items-center gap-4">
+        <div className="w-16 h-16 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+          {profile?.logo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={profile.logo} alt="Hospital logo" className="w-full h-full object-cover" />
+          ) : (
+            <span className="text-xs text-gray-400">No logo</span>
+          )}
+        </div>
+        <div className="flex-1">
+          <p className="text-sm font-semibold text-[#0D1117]">Hospital logo</p>
+          <p className="text-xs text-gray-400 mt-0.5">JPEG, PNG or WebP, up to 5MB</p>
+          {logoError && <p className="text-xs text-red-600 mt-1">{logoError}</p>}
+        </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          onChange={handleLogoSelect}
+          className="hidden"
+        />
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={logoUploading}
+          className="text-sm font-semibold text-primary border border-primary/30 rounded-lg px-4 py-2 disabled:opacity-60"
+        >
+          {logoUploading ? 'Uploading...' : profile?.logo ? 'Change' : 'Upload'}
+        </button>
+      </div>
 
       <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-gray-100 p-6 flex flex-col gap-4">
         {error && (
